@@ -1,4 +1,7 @@
 import sys
+sys.path.append("/home/jgauthie/projects/clevros")
+from clevros.primitives import *
+
 import time
 import traceback
 import pickle as pickle
