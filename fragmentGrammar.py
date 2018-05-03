@@ -1,15 +1,13 @@
-from .utilities import *
+from ec.utilities import *
 
-from .task import *
-from .fragmentUtilities import *
-from .frontier import *
-from .grammar import *
-from .program import *
-
+from ec.task import *
+from ec.fragmentUtilities import *
+from ec.frontier import *
+from ec.grammar import *
+from ec.program import *
 
 import gc
 
-from itertools import chain
 import time
 
 class FragmentGrammar(object):
@@ -24,12 +22,12 @@ class FragmentGrammar(object):
     def __repr__(self):
         return "FragmentGrammar(logVariable={self.logVariable}, productions={self.productions}".format(self=self)
     def __str__(self):
-        def productionKey(xxx_todo_changeme):
-            (l,t,p) = xxx_todo_changeme
+        def productionKey(rule):
+            l,t,p = rule
             return not isinstance(p,Primitive), -l
         return "\n".join(["%f\tt0\t$_"%self.logVariable] + \
-                         [ "%f\t%s\t%s"%(l,t,p) for l,t,p in sorted(self.productions, key=productionKey) ])
-                                                                    
+                         [ "%f\t%s\t%s"%(l,t,p) for l,t,p in sorted(self.productions, key = productionKey) ])
+
 
     def buildCandidates(self, context, environment, request):
         candidates = []
@@ -75,7 +73,7 @@ class FragmentGrammar(object):
         '''returns (context, log likelihood, uses)'''
 
         # We can cash likelihood calculations faster whenever they don't involve type inference
-        # This is because they are guaranteed to not modify the context, 
+        # This is because they are guaranteed to not modify the context,
         polymorphic = request.isPolymorphic or any(v.isPolymorphic for v in environment)
         # For some reason polymorphic caching slows it down
         shouldDoCaching = not polymorphic
@@ -98,9 +96,9 @@ class FragmentGrammar(object):
                 if polymorphic:
                     context = context.unify(request, outRequest)
                     for v,vp in zip(environment, outEnvironment):
-                        context = context.unify(v, vp)                
-                return context,l,u            
-        
+                        context = context.unify(v, vp)
+                return context,l,u
+
         if request.isArrow():
             if not isinstance(expression,Abstraction):
                 return (context,NEGATIVEINFINITY,Uses.empty)
@@ -108,7 +106,7 @@ class FragmentGrammar(object):
                                       [request.arguments[0]] + environment,
                                       request.arguments[1],
                                       expression.body)
-        
+
         # Not a function type
 
         # Construct and normalize the candidate productions
@@ -123,7 +121,7 @@ class FragmentGrammar(object):
                                           for _,_,_,candidate in candidates )))
         possibleUses = {candidate: 1. for _,_,_,candidate in candidates
                                       if not isinstance(candidate,Index)}
-        
+
         for f,xs in expression.applicationParses():
             for candidateLikelihood, newContext, tp, production in candidates:
                 variableBindings = {}
@@ -166,14 +164,14 @@ class FragmentGrammar(object):
                                      actualUses={production: 1.})
 
                 # Accumulate likelihood from free variables and holes and arguments
-                for freeType,freeExpression in chain(variableBindings.values(), zip(argumentTypes, xs)):
+                for freeType,freeExpression in list(variableBindings.values()) + list(zip(argumentTypes, xs)):
                     freeType = freeType.apply(newContext)
                     newContext, expressionLikelihood, newUses = \
                             self._logLikelihood(newContext, environment, freeType, freeExpression)
                     if expressionLikelihood is NEGATIVEINFINITY:
                         thisLikelihood = NEGATIVEINFINITY
                         break
-                    
+
                     thisLikelihood += expressionLikelihood
                     theseUses += newUses
 
@@ -222,7 +220,7 @@ class FragmentGrammar(object):
         return sum( lse([ entry.logLikelihood + self.logLikelihood(frontier.task.request, entry.program)
                           for entry in frontier ])
                     for frontier in frontiers )
-    def jointFrontiersMDL(self, frontiers, CPUs=1):
+    def jointFrontiersMDL(self, frontiers, CPUs = 1):
         return sum( parallelMap(CPUs, \
                                 lambda frontier: max( entry.logLikelihood + self.logLikelihood(frontier.task.request, entry.program)
                                                       for entry in frontier ),
@@ -253,20 +251,20 @@ class FragmentGrammar(object):
 
     def rescoreFrontier(self, frontier):
         return Frontier([ FrontierEntry(e.program,
-                                        logPrior=self.logLikelihood(frontier.task.request, e.program),
-                                        logLikelihood=e.logLikelihood)
+                                        logPrior = self.logLikelihood(frontier.task.request, e.program),
+                                        logLikelihood = e.logLikelihood)
                           for e in frontier ],
                         frontier.task)
 
     @staticmethod
-    def induceFromFrontiers(g0, frontiers, _=None,
-                            topK=1, pseudoCounts=1.0, aic=1.0, structurePenalty=0.001, a=0, CPUs=1):
+    def induceFromFrontiers(g0, frontiers, _ = None,
+                            topK = 1, pseudoCounts = 1.0, aic = 1.0, structurePenalty = 0.001, a = 0, CPUs = 1):
         originalFrontiers = frontiers
         frontiers = [frontier for frontier in frontiers if not frontier.empty ]
         eprint("Inducing a grammar from",len(frontiers),"frontiers")
 
         bestGrammar = FragmentGrammar.fromGrammar(g0)
-        oldJoint = bestGrammar.jointFrontiersMDL(frontiers, CPUs=1)
+        oldJoint = bestGrammar.jointFrontiersMDL(frontiers, CPUs = 1)
 
         # "restricted frontiers" only contain the top K according to the best grammar
         def restrictFrontiers():
@@ -277,7 +275,7 @@ class FragmentGrammar(object):
         def grammarScore(g):
             g = g.makeUniform().insideOutside(restrictedFrontiers, pseudoCounts)
             likelihood = g.jointFrontiersMDL(restrictedFrontiers)
-            structure = sum(fragmentSize(p) for p in g.primitives)
+            structure = sum(primitiveSize(p) for p in g.primitives)
             score = likelihood - aic*len(g) - structurePenalty*structure
             g.clearCache()
             if invalid(score):
@@ -289,6 +287,7 @@ class FragmentGrammar(object):
         if aic is not POSITIVEINFINITY:
             restrictedFrontiers = restrictFrontiers()
             bestScore, _ = grammarScore(bestGrammar)
+            eprint("Starting score",bestScore)
             while True:
                 restrictedFrontiers = restrictFrontiers()
                 fragments = [ f
@@ -304,7 +303,7 @@ class FragmentGrammar(object):
 
                 scoredFragments = parallelMap(CPUs, grammarScore, candidateGrammars,
                                               # Each process handles up to 100 grammars at a time, a "job"
-                                              chunksize=max(1,min(len(candidateGrammars)//CPUs, 100)),
+                                              chunk = max(1,min(len(candidateGrammars)/CPUs, 100)),
                                               # maxTasks: Maximum number of jobs allocated to a process
                                               # This means that after evaluating this*chunk many grammars,
                                               # we killed the process, freeing up its memory.
@@ -312,7 +311,7 @@ class FragmentGrammar(object):
                                               # We should play with this number,
                                               # figuring out how big we can make it without
                                               # running out of memory.
-                                              maxtasksperchild=5)
+                                              maxTasks = 5)
                 newScore, newGrammar = max(scoredFragments)
 
                 if newScore <= bestScore:
@@ -320,10 +319,10 @@ class FragmentGrammar(object):
                 dS = newScore - bestScore
                 bestScore, bestGrammar = newScore, newGrammar
                 newPrimitiveLikelihood,newType,newPrimitive = bestGrammar.productions[-1]
-                expectedUses = bestGrammar.expectedUses(restrictedFrontiers).actualUses[newPrimitive]
+                expectedUses = bestGrammar.expectedUses(restrictedFrontiers).actualUses.get(newPrimitive,0)
                 eprint("New primitive of type %s\t%s\t\n(score = %f; dScore = %f; <uses> = %f)"%
                        (newType,newPrimitive,newScore,dS,expectedUses))
-                
+
                 # Rewrite the frontiers in terms of the new fragment
                 concretePrimitive = defragment(newPrimitive)
                 bestGrammar.productions[-1] = (newPrimitiveLikelihood,
@@ -347,10 +346,10 @@ class FragmentGrammar(object):
         else:
             # Use parameters that were found during search
             pass
-            
+
 
         eprint("Old joint = %f\tNew joint = %f\n"%(oldJoint,
-                                                   bestGrammar.jointFrontiersMDL(frontiers,CPUs=CPUs)))
+                                                   bestGrammar.jointFrontiersMDL(frontiers,CPUs = CPUs)))
         # Return all of the frontiers, which have now been rewritten to use the new fragments
         frontiers = {f.task: f for f in frontiers }
         frontiers = [ frontiers.get(f.task, f)
@@ -358,18 +357,25 @@ class FragmentGrammar(object):
 
         productionUses = bestGrammar.expectedUses([f for f in frontiers if not f.empty ]).actualUses
         productionUses = {p: productionUses.get(p,0.) for p in bestGrammar.primitives }
+        possibleUses = bestGrammar.expectedUses([f for f in frontiers if not f.empty ]).possibleUses
+        possibleUses = {p: possibleUses.get(p,0.) for p in bestGrammar.primitives }
+
+        for p in bestGrammar.primitives:
+            eprint("%f / %f\t%s"%(productionUses[p],
+                                  possibleUses[p],
+                                  p))
 
         bestGrammar.clearCache()
-        
+
         grammar = bestGrammar.toGrammar()
 
-        if any( productionUses.get(p,0) < 1. for p in grammar.primitives if p.isInvented ):
+        if any( productionUses.get(p,0) < 0.5 for p in grammar.primitives if p.isInvented ):
             uselessProductions = [ p for p in grammar.primitives
-                                   if p.isInvented and productionUses.get(p,0) < 1. ]
+                                   if p.isInvented and productionUses.get(p,0) < 0.5 ]
             eprint("The following invented primitives are no longer needed, removing them...")
             eprint("\t" + "\t\n".join(map(str,uselessProductions)))
             grammar = grammar.removeProductions(uselessProductions)
-        
+
         return grammar, frontiers
 
 def induceGrammar(*args, **kwargs):
@@ -415,13 +421,13 @@ def rustInduce(g0, frontiers, _=None,
             } for e in f ],
         } for f in frontiers ],
     }
+
     eprint("running rust compressor")
-    p = subprocess.Popen(['./ec/rust_compressor/rust_compressor'], encoding="utf-8",
+    p = subprocess.Popen(['./rust_compressor/rust_compressor'],
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-
-    #Used to have encoding
+    with open('rust_compressor_message.json','w') as handle:
+        json.dump(message, handle)
     json.dump(message, p.stdin)
-
     p.stdin.close()
     resp = json.load(p.stdout)
     if p.returncode is not None:
@@ -444,25 +450,25 @@ if __name__ == "__main__":
     McCarthyPrimitives()
     f = Program.parse("(fix1 $0 (lambda (lambda (if (empty? $0) $3 ($4 ($5 $0) ($1 (cdr $0)))))))")
     p = Program.parse("(fix1 $0 (lambda (lambda (if (empty? $0) empty (cons (cdr $0) ($1 (cdr $0)))))))")
-    print(p)
-    print(f)
-    request = arrow(tlist(tint),tlist(tlist(tint)))
-    _,t,b = Matcher.match(Context.EMPTY, f, p, 2)
-    print("With fragment likelihood",\
-        FragmentGrammar.uniform([f] + McCarthyPrimitives()).logLikelihood(request, Abstraction(p)))
-    print("without fragment likelihood",\
-        FragmentGrammar.uniform(McCarthyPrimitives()).logLikelihood(request, Abstraction(p)))
-    pp = RewriteFragments(f).rewrite(Abstraction(p))
-    print(pp)
-    print(pp.infer())
+    # print p
+    # print f
+    # request = arrow(tlist(tint),tlist(tlist(tint)))
+    # _,t,b = Matcher.match(Context.EMPTY, f, p, 2)
+    # print "With fragment likelihood",\
+    #     FragmentGrammar.uniform([f] + McCarthyPrimitives()).logLikelihood(request, Abstraction(p))
+    # print "without fragment likelihood",\
+    #     FragmentGrammar.uniform(McCarthyPrimitives()).logLikelihood(request, Abstraction(p))
+    # pp = RewriteFragments(f).rewrite(Abstraction(p))
+    # print pp
+    # print pp.infer()
 
-    g = FragmentGrammar.fromGrammar(Grammar.uniform([defragment(f)] + McCarthyPrimitives()))
-    print(g)
-    g.logLikelihood(request,pp)
-    # p = Abstraction(p)
-    # for a in xrange(3):
-    #     for b in xrange(3):
-    #         for c in xrange(3):
-    #             print pp.evaluate([])(a)(b)(c) == p.evaluate([])(a)(b)(c)
-    print(t)
-    print(b)
+    # g = FragmentGrammar.fromGrammar(Grammar.uniform([defragment(f)] + McCarthyPrimitives()))
+    # print g
+    # g.logLikelihood(request,pp)
+    # # p = Abstraction(p)
+    # # for a in xrange(3):
+    # #     for b in xrange(3):
+    # #         for c in xrange(3):
+    # #             print pp.evaluate([])(a)(b)(c) == p.evaluate([])(a)(b)(c)
+    # print t
+    # print b

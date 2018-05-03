@@ -1,6 +1,6 @@
-from .type import *
-from .program import *
-from .frontier import *
+from ec.type import *
+from ec.program import *
+from ec.frontier import *
 
 from collections import Counter
 
@@ -45,8 +45,8 @@ class Matcher(object):
         # out of the fragment and preserve semantics
         for fv in expression.freeVariables():
             if fv < len(environment): raise MatchFailure()
-        
-        # The value is going to be lifted out of the fragment        
+
+        # The value is going to be lifted out of the fragment
         try: expression = expression.shift(-surroundingAbstractions)
         except ShiftFailure: raise MatchFailure()
 
@@ -122,7 +122,7 @@ class CanonicalVisitor(object):
         self.numberOfAbstractions += 1
         return Index(self.numberOfAbstractions - 1 + d)
 
-def fragmentSize(f, boundVariableCost=0.1, freeVariableCost=0.01):
+def fragmentSize(f, boundVariableCost = 0.1, freeVariableCost = 0.01):
     freeVariables = 0
     leaves = 0
     boundVariables = 0
@@ -133,6 +133,10 @@ def fragmentSize(f, boundVariableCost=0.1, freeVariableCost=0.01):
             else: freeVariables += 1
         assert not isinstance(e,FragmentVariable)
     return leaves + boundVariableCost*boundVariables + freeVariableCost*freeVariables
+
+def primitiveSize(e):
+    if e.isInvented: e = e.body
+    return fragmentSize(e)
 
 def defragment(expression):
     '''Converts a fragment into an invented primitive'''
@@ -154,7 +158,7 @@ class RewriteFragments(object):
         try:
             context, t, bindings = Matcher.match(Context.EMPTY, self.fragment, e, numberOfArguments)
         except MatchFailure: return None
-        
+
         assert frozenset(bindings.keys()) == frozenset(range(len(bindings))),\
             "Perhaps the fragment is not in canonical form?"
         e = self.concrete
@@ -162,7 +166,7 @@ class RewriteFragments(object):
             _,b = bindings[j]
             e = Application(e, b)
         return e
-            
+
     def application(self, e, numberOfArguments):
         e = Application(e.f.visit(self, numberOfArguments+1),
                         e.x.visit(self, 0))
@@ -179,13 +183,13 @@ class RewriteFragments(object):
     @staticmethod
     def rewriteFrontier(frontier, fragment):
         worker = RewriteFragments(fragment)
-        return Frontier([ FrontierEntry(program=worker.rewrite(e.program),
-                                        logLikelihood=e.logLikelihood,
-                                        logPrior=e.logPrior,
-                                        logPosterior=e.logPosterior)
+        return Frontier([ FrontierEntry(program = worker.rewrite(e.program),
+                                        logLikelihood = e.logLikelihood,
+                                        logPrior = e.logPrior,
+                                        logPosterior = e.logPosterior)
                           for e in frontier ],
                         task = frontier.task)
-        
+
 
 def proposeFragmentsFromFragment(f):
     '''Abstracts out repeated structure within a single fragment'''
@@ -228,7 +232,7 @@ def violatesLaziness(fragment):
         if not child.isApplication: continue
         f,xs = child.applicationParse()
         if not (f.isPrimitive and f.name == "if"): continue
-        
+
         # curried conditionals always violate laziness
         if len(xs) != 3: return True
 
@@ -246,9 +250,9 @@ def violatesLaziness(fragment):
 
 def proposeFragmentsFromProgram(p,arity):
 
-    def fragment(expression,a, toplevel=True):
+    def fragment(expression,a, toplevel = True):
         """Generates fragments that unify with expression"""
-        
+
         if a == 1:
             yield FragmentVariable.single
         if a == 0:
@@ -258,33 +262,33 @@ def proposeFragmentsFromProgram(p,arity):
         if isinstance(expression, Abstraction):
             # Symmetry breaking: (\x \y \z ... f(x,y,z,...)) defragments to be the same as f(x,y,z,...)
             if not toplevel:
-                for b in fragment(expression.body,a,toplevel=False):
+                for b in fragment(expression.body,a,toplevel = False):
                     yield Abstraction(b)
         elif isinstance(expression, Application):
             for fa in range(a + 1):
-                for f in fragment(expression.f,fa,toplevel=False):
-                    for x in fragment(expression.x,a - fa,toplevel=False):
+                for f in fragment(expression.f,fa,toplevel = False):
+                    for x in fragment(expression.x,a - fa,toplevel = False):
                         yield Application(f,x)
         else:
             assert isinstance(expression, (Invented,Primitive,Index))
 
     def fragments(expression,a):
         """Generates fragments that unify with subexpressions of expression"""
-        
-        yield from fragment(expression,a)
+
+        for f in fragment(expression,a): yield f
         if isinstance(expression, Application):
             curry = True
             if curry:
-                yield from fragments(expression.f, a)
-                yield from fragments(expression.x, a)
+                for f in fragments(expression.f, a): yield f
+                for f in fragments(expression.x, a): yield f
             else:
                 # Pretend that it is not curried
                 function,arguments = expression.applicationParse()
-                yield from fragments(function,a)
+                for f in fragments(function,a): yield f
                 for argument in arguments:
-                    yield from fragments(argument,a)
+                    for f in fragments(argument,a): yield f
         elif isinstance(expression, Abstraction):
-            yield from fragments(expression.body,a)
+            for f in fragments(expression.body,a): yield f
         else:
             assert isinstance(expression, (Invented,Primitive,Index))
 
@@ -299,7 +303,7 @@ def proposeFragmentsFromFrontiers(frontiers, a, CPUs=1):
                                             frontiers)
     allFragments = Counter(f for frontierFragments in fragmentsFromEachFrontier
                            for f in frontierFragments)
-    return [ fragment for fragment, frequency in allFragments.items() 
+    return [ fragment for fragment, frequency in allFragments.items()
              if frequency >= 2 and fragment.wellTyped() and nontrivial(fragment) ]
 
 

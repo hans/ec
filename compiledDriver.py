@@ -6,7 +6,7 @@ import time
 import traceback
 import pickle as pickle
 
-from .utilities import eprint
+from ec.utilities import eprint
 
 
 if __name__ == "__main__":

@@ -49,7 +49,7 @@ POSITIVEINFINITY = float('inf')
 PARALLELMAPDATA = None
 
 
-def parallelMap(numberOfCPUs, f, *xs, chunksize=None, maxtasksperchild=None):
+def parallelMap(numberOfCPUs, f, *xs, **keywordArguments):
     global PARALLELMAPDATA
 
     if numberOfCPUs == 1: return map(f,*xs)
@@ -67,13 +67,15 @@ def parallelMap(numberOfCPUs, f, *xs, chunksize=None, maxtasksperchild=None):
     random.shuffle(permutation)
     inversePermutation = dict(zip(permutation, range(n)))
 
-    # Batch size of jobs as they are sent to processes
-    if chunksize is None:
-        chunksize = max(1,n//(numberOfCPUs*2))
-    pool = Pool(numberOfCPUs, maxtasksperchild=maxtasksperchild)
-    ys = pool.map(parallelMapCallBack, permutation,
-                     chunksize=chunksize)
-    pool.terminate()
+    chunk = keywordArguments.get('chunk', max(1,int(n/numberOfCPUs*2)))
+
+    maxTasks = keywordArguments.get('maxTasks', None)
+    workers = Pool(numberOfCPUs, maxtasksperchild = maxTasks)
+
+    ys = workers.map(parallelMapCallBack, permutation,
+                     chunksize = chunk)
+
+    workers.terminate()
 
     PARALLELMAPDATA = None
     return [ ys[inversePermutation[j]] for j in range(n) ]
@@ -155,9 +157,9 @@ def forkCallBack(x):
 def callFork(f, *arguments, **kw):
     """Forks a new process to execute the call. Blocks until the call completes."""
     global FORKPARAMETERS
-    
+
     from multiprocessing import Pool
-    
+
     workers = Pool(1)
     ys = workers.map(forkCallBack,[[f,arguments,kw]])
     workers.terminate()
@@ -184,8 +186,8 @@ def _launchParallelProcess():
     except Exception as e:
         eprint("Exception in worker during forking:\n%s"%(traceback.format_exc()))
         raise e
-    
-    
+
+
 
 class CompiledTimeout(Exception): pass
 
@@ -199,12 +201,16 @@ def callCompiled(f, *arguments, **keywordArguments):
 
     timeout = keywordArguments.pop('compiledTimeout', None)
 
+    cwd = os.path.dirname(__file__)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.path.abspath(os.path.join(cwd, ".."))
     p = subprocess.Popen(['pypy3'] + pypyArgs + ['compiledDriver.py'],
-                         stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    
+                         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                         cwd=cwd, env=env)
+
     if PIDCallBack is not None:
         PIDCallBack(p.pid)
-    
+
     request = {
         "function": f,
         "arguments": arguments,
@@ -239,7 +245,7 @@ def callCompiled(f, *arguments, **keywordArguments):
 class timing(object):
     def __init__(self,message):
         self.message = message
-        
+
     def __enter__(self):
         self.start = time.time()
         return self
@@ -267,7 +273,7 @@ def sampleDistribution(d):
     Otherwise it returns the suffix tuple
     """
     import random
-    
+
     z = float(sum(t[0] for t in d))
     r = random.random()
     u = 0.
@@ -282,7 +288,7 @@ def sampleDistribution(d):
 def testTrainSplit(x, trainingFraction, seed=0):
     needToTrain = {j for j,d in enumerate(x) if hasattr(d, 'mustTrain') and d.mustTrain }
     mightTrain = [ j for j in range(len(x)) if j not in needToTrain ]
-    
+
     import random
     random.seed(seed)
     training = list(range(len(mightTrain)))
@@ -296,8 +302,8 @@ def testTrainSplit(x, trainingFraction, seed=0):
 def numberOfCPUs():
     import multiprocessing
     return multiprocessing.cpu_count()
-    
-    
+
+
 def loadPickle(f):
     with open(f,'rb') as handle:
         d = pickle.load(handle)
@@ -329,7 +335,7 @@ class Stopwatch():
         self._elapsed = 0.
         self.running = False
         self._latestStart = None
-        
+
     def start(self):
         if self.running:
             eprint("(stopwatch: attempted to start an already running stopwatch. Silently ignoring.)")
@@ -351,8 +357,8 @@ class Stopwatch():
         if self.running:
             e = e + time.time() - self._latestStart
         return e
-        
-        
+
+
 
 def userName():
     import getpass
@@ -370,7 +376,7 @@ def CPULoad():
 
 def flushEverything():
     sys.stdout.flush()
-    sys.stderr.flush()    
+    sys.stderr.flush()
 
 if __name__ == "__main__":
     s = Stopwatch()
