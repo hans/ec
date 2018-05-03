@@ -51,7 +51,7 @@ def summaryStatistics(n,times):
 
 
 
-    
+
 
 NEGATIVEINFINITY = float('-inf')
 POSITIVEINFINITY = float('inf')
@@ -66,7 +66,7 @@ def parallelMap(numberOfCPUs, f, *xs, **keywordArguments):
 
     n = len(xs[0])
     for x in xs: assert len(x) == n
-    
+
     assert PARALLELMAPDATA is None
     PARALLELMAPDATA = (f,xs)
 
@@ -79,13 +79,12 @@ def parallelMap(numberOfCPUs, f, *xs, **keywordArguments):
 
     # Batch size of jobs as they are sent to processes
     chunk = keywordArguments.get('chunk', max(1,int(n/(numberOfCPUs*2))))
-    
+
     maxTasks = keywordArguments.get('maxTasks', None)
     workers = Pool(numberOfCPUs, maxtasksperchild = maxTasks)
 
     ys = workers.map(parallelMapCallBack, permutation,
                      chunksize = chunk)
-    
     workers.terminate()
 
     PARALLELMAPDATA = None
@@ -168,9 +167,9 @@ def forkCallBack(x):
 def callFork(f, *arguments, **kw):
     """Forks a new process to execute the call. Blocks until the call completes."""
     global FORKPARAMETERS
-    
+
     from multiprocessing import Pool
-    
+
     workers = Pool(1)
     ys = workers.map(forkCallBack,[[f,arguments,kw]])
     workers.terminate()
@@ -197,8 +196,8 @@ def _launchParallelProcess():
     except Exception as e:
         eprint("Exception in worker during forking:\n%s"%(traceback.format_exc()))
         raise e
-    
-    
+
+
 
 class CompiledTimeout(Exception): pass
 
@@ -212,12 +211,16 @@ def callCompiled(f, *arguments, **keywordArguments):
 
     timeout = keywordArguments.pop('compiledTimeout', None)
 
-    p = subprocess.Popen(['pypy'] + pypyArgs + ['compiledDriver.py'],
-                         stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    
+    cwd = os.path.dirname(__file__)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.path.abspath(os.path.join(cwd, ".."))
+    p = subprocess.Popen(['pypy3'] + pypyArgs + ['compiledDriver.py'],
+                         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                         cwd=cwd, env=env)
+
     if PIDCallBack is not None:
         PIDCallBack(p.pid)
-    
+
     request = {
         "function": f,
         "arguments": arguments,
@@ -252,7 +255,7 @@ def callCompiled(f, *arguments, **keywordArguments):
 class timing(object):
     def __init__(self,message):
         self.message = message
-        
+
     def __enter__(self):
         self.start = time.time()
         return self
@@ -286,7 +289,7 @@ def sampleDistribution(d):
     Otherwise it returns the suffix tuple
     """
     import random
-    
+
     z = float(sum(t[0] for t in d))
     r = random.random()
     u = 0.
@@ -301,7 +304,7 @@ def sampleDistribution(d):
 def testTrainSplit(x, trainingFraction, seed = 0):
     needToTrain = {j for j,d in enumerate(x) if hasattr(d, 'mustTrain') and d.mustTrain }
     mightTrain = [ j for j in range(len(x)) if j not in needToTrain ]
-    
+
     import random
     random.seed(seed)
     training = range(len(mightTrain))
@@ -315,8 +318,8 @@ def testTrainSplit(x, trainingFraction, seed = 0):
 def numberOfCPUs():
     import multiprocessing
     return multiprocessing.cpu_count()
-    
-    
+
+
 def loadPickle(f):
     with open(f,'rb') as handle:
         d = pickle.load(handle)
@@ -348,7 +351,7 @@ class Stopwatch():
         self._elapsed = 0.
         self.running = False
         self._latestStart = None
-        
+
     def start(self):
         if self.running:
             eprint("(stopwatch: attempted to start an already running stopwatch. Silently ignoring.)")
@@ -370,8 +373,8 @@ class Stopwatch():
         if self.running:
             e = e + time.time() - self._latestStart
         return e
-        
-        
+
+
 
 def userName():
     import getpass
@@ -397,7 +400,7 @@ def runWithTimeout(k, timeout):
     def timeoutCallBack(_1,_2): raise RunWithTimeout()
     signal.signal(signal.SIGVTALRM, timeoutCallBack)
     signal.setitimer(signal.ITIMER_VIRTUAL, timeout)
-    
+
     try:
         result = k()
         signal.signal(signal.SIGVTALRM, lambda *_:None)
@@ -426,8 +429,8 @@ class PQ(object):
     def __iter__(self):
         for _,v in self.h: yield v
     def __len__(self): return len(self.h)
-        
-    
+
+
 if __name__ == "__main__":
     def f():
         return 5/0

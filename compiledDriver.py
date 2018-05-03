@@ -1,9 +1,12 @@
 import sys
+sys.path.append("/home/jgauthie/projects/clevros")
+from clevros.primitives import *
+
 import time
 import traceback
 import cPickle as pickle
 
-from utilities import eprint
+from ec.utilities import eprint
 
 
 if __name__ == "__main__":

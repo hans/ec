@@ -1,6 +1,6 @@
-from type import *
-from program import *
-from frontier import *
+from ec.type import *
+from ec.program import *
+from ec.frontier import *
 
 from collections import Counter
 
@@ -45,8 +45,8 @@ class Matcher(object):
         # out of the fragment and preserve semantics
         for fv in expression.freeVariables():
             if fv < len(environment): raise MatchFailure()
-        
-        # The value is going to be lifted out of the fragment        
+
+        # The value is going to be lifted out of the fragment
         try: expression = expression.shift(-surroundingAbstractions)
         except ShiftFailure: raise MatchFailure()
 
@@ -158,7 +158,7 @@ class RewriteFragments(object):
         try:
             context, t, bindings = Matcher.match(Context.EMPTY, self.fragment, e, numberOfArguments)
         except MatchFailure: return None
-        
+
         assert frozenset(bindings.keys()) == frozenset(range(len(bindings))),\
             "Perhaps the fragment is not in canonical form?"
         e = self.concrete
@@ -166,7 +166,7 @@ class RewriteFragments(object):
             _,b = bindings[j]
             e = Application(e, b)
         return e
-            
+
     def application(self, e, numberOfArguments):
         e = Application(e.f.visit(self, numberOfArguments+1),
                         e.x.visit(self, 0))
@@ -189,7 +189,7 @@ class RewriteFragments(object):
                                         logPosterior = e.logPosterior)
                           for e in frontier ],
                         task = frontier.task)
-        
+
 
 def proposeFragmentsFromFragment(f):
     '''Abstracts out repeated structure within a single fragment'''
@@ -232,7 +232,7 @@ def violatesLaziness(fragment):
         if not child.isApplication: continue
         f,xs = child.applicationParse()
         if not (f.isPrimitive and f.name == "if"): continue
-        
+
         # curried conditionals always violate laziness
         if len(xs) != 3: return True
 
@@ -252,7 +252,7 @@ def proposeFragmentsFromProgram(p,arity):
 
     def fragment(expression,a, toplevel = True):
         """Generates fragments that unify with expression"""
-        
+
         if a == 1:
             yield FragmentVariable.single
         if a == 0:
@@ -265,7 +265,7 @@ def proposeFragmentsFromProgram(p,arity):
                 for b in fragment(expression.body,a,toplevel = False):
                     yield Abstraction(b)
         elif isinstance(expression, Application):
-            for fa in xrange(a + 1):
+            for fa in range(a + 1):
                 for f in fragment(expression.f,fa,toplevel = False):
                     for x in fragment(expression.x,a - fa,toplevel = False):
                         yield Application(f,x)
@@ -274,7 +274,6 @@ def proposeFragmentsFromProgram(p,arity):
 
     def fragments(expression,a):
         """Generates fragments that unify with subexpressions of expression"""
-        
         for f in fragment(expression,a): yield f
         if isinstance(expression, Application):
             curry = True
@@ -303,7 +302,7 @@ def proposeFragmentsFromFrontiers(frontiers, a, CPUs=1):
                                             frontiers)
     allFragments = Counter(f for frontierFragments in fragmentsFromEachFrontier
                            for f in frontierFragments)
-    return [ fragment for fragment, frequency in allFragments.iteritems() 
+    return [ fragment for fragment, frequency in allFragments.items()
              if frequency >= 2 and fragment.wellTyped() and nontrivial(fragment) ]
 
 
