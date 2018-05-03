@@ -1,5 +1,5 @@
-from utilities import *
-from task import Task
+from ec.utilities import *
+from ec.task import Task
 
 class FrontierEntry(object):
     def __init__(self, program, _ = None, logPrior = None, logLikelihood = None, logPosterior = None):
@@ -48,7 +48,7 @@ class Frontier(object):
         newEntries.sort(key = lambda e: e.logPosterior, reverse=True)
         return Frontier(newEntries,
                         self.task)
-        
+
     def removeZeroLikelihood(self):
         self.entries = [ e for e in self.entries if e.logLikelihood != float('-inf') ]
         return self
@@ -90,13 +90,13 @@ class Frontier(object):
                          [ "Hits %d/%d tasks"%(numberOfHits,len(frontiers))] + \
                          [ "Average description length of a program solving a task: %f nats"%(-averageLikelihood) ])
 
-        
+
     def combine(self, other, tolerance = 0.01):
         '''Takes the union of the programs in each of the frontiers'''
         assert self.task == other.task
 
         foundDifference = False
-        
+
         x = {e.program: e for e in self }
         y = {e.program: e for e in other }
         programs = set(x.keys()) | set(y.keys())
@@ -124,4 +124,4 @@ class Frontier(object):
                    "\tThis is acceptable only if the likelihood model is stochastic. Took the geometric mean of the likelihoods.")
 
         return Frontier(union, self.task)
-            
+

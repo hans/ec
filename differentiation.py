@@ -1,6 +1,6 @@
 import math
 import random
-from utilities import *
+from ec.utilities import *
 
 class InvalidLoss(Exception): pass
 
@@ -11,14 +11,14 @@ class DN(object):
         if arguments != []:
             self.data = None
         self.arguments = arguments
-        
+
         # descendents: every variable that takes this variable as input
         # descendents: [(DN,float)]
         # the additional float parameter is d Descendent / d This
         self.descendents = []
 
         self.recalculate()
-        
+
     def __str__(self):
         if self.arguments == []: return self.name
         return "(%s %s)"%(self.name," ".join(str(x) for x in self.arguments ))
@@ -38,11 +38,11 @@ class DN(object):
     def zeroEverything(self):
         if self.gradient is None and self.descendents == [] and (self.data == None or self.arguments == []):
             return
-        
+
         self.gradient = None
         self.descendents = []
         if self.arguments != []: self.data = None
-        
+
         for x in self.arguments: x.zeroEverything()
 
     def lightweightRecalculate(self):
@@ -108,7 +108,7 @@ class DN(object):
             d = (y2 - y1)/(2*e)
             if abs(calculatedGradients[j] - d) > 0.1:
                 eprint("Bad gradient: expected %f, got %f"%(d,calculatedGradients[j]))
-    
+
     def gradientDescent(self, parameters, _ = None, lr = 0.001, steps = 10**3, update = None):
         for j in range(steps):
             l = self.updateNetwork()
@@ -117,7 +117,7 @@ class DN(object):
                 for p in parameters:
                     eprint(p.data,'\t',p.derivative)
             if invalid(l): raise InvalidLoss()
-                    
+
             for p in parameters:
                 p.data -= lr*p.derivative
         return self.data
@@ -145,8 +145,8 @@ class DN(object):
             previousSign = newSigns
 
         return self.data
-    
-        
+
+
 
 class Placeholder(DN):
     COUNTER = 0
@@ -278,6 +278,6 @@ if __name__ == "__main__":
     loss = -z
     eprint(loss)
 
-    
+
     lr = 0.001
     loss.gradientDescent([x,y],steps = 10000, update = 1000)

@@ -6,7 +6,6 @@ from ec.frontier import *
 from ec.grammar import *
 from ec.program import *
 
-from itertools import izip
 import gc
 
 import time
@@ -204,7 +203,7 @@ class FragmentGrammar(object):
                         for frontier in frontiers ]
         zs = (lse([ l for l,_ in ls ]) for ls in likelihoods)
         return sum(math.exp(l - z)*u
-                   for z,frontier in izip(zs,likelihoods)
+                   for z,frontier in zip(zs,likelihoods)
                    for l,u in frontier)
 
     def insideOutside(self, frontiers, pseudoCounts):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from type import *
-from utilities import *
+from ec.type import *
+from ec.utilities import *
 
 from time import time
 import math
@@ -122,7 +122,7 @@ class Application(Program):
             self.falseBranch = x
             self.trueBranch = f.x
             self.branch = f.f.x
-            
+
     @property
     def isApplication(self): return True
     def __eq__(self,other): return isinstance(other,Application) and self.f == other.f and self.x == other.x
@@ -197,7 +197,7 @@ class Application(Program):
         for x in xs[1:]: e = Application(e,x)
         return e,s
 
-            
+
 
 class Index(Program):
     '''
@@ -260,7 +260,7 @@ class Index(Program):
             s = s[1:]
         if n == "": raise ParseFailure(s)
         return Index(int(n)),s
-        
+
 
 
 class Abstraction(Program):
@@ -283,7 +283,7 @@ class Abstraction(Program):
         (context,argumentType) = context.makeVariable()
         (context,returnType) = self.body.inferType(context,[argumentType] + environment,freeVariables)
         return (context, arrow(argumentType,returnType).apply(context))
-    
+
     def shift(self,offset, depth = 0):
         return Abstraction(self.body.shift(offset, depth + 1))
     def substitute(self, old, new):
@@ -291,7 +291,7 @@ class Abstraction(Program):
         old = old.shift(1)
         new = new.shift(1)
         return Abstraction(self.body.substitute(old, new))
-    
+
     def walk(self,surroundingAbstractions = 0):
         yield surroundingAbstractions,self
         for child in self.body.walk(surroundingAbstractions + 1): yield child
@@ -319,7 +319,7 @@ class Abstraction(Program):
         return Abstraction(b),s
 
 
-        
+
 
 class Primitive(Program):
     GLOBALS = {}
@@ -394,7 +394,7 @@ class Invented(Program):
         s = s[1:]
         b,s = Program._parse(s)
         return Invented(b),s
-    
+
 
 class FragmentVariable(Program):
     def __init__(self): pass
@@ -441,7 +441,7 @@ class ShareVisitor(object):
         self.indexTable = {}
         self.applicationTable = {}
         self.abstractionTable = {}
-        
+
     def invented(self,e):
         body = e.body.visit(self)
         i = id(body)
@@ -466,7 +466,7 @@ class ShareVisitor(object):
         if i in self.applicationTable: return self.applicationTable[i]
         new = Application(f,x)
         self.applicationTable[i] = new
-        return new        
+        return new
     def abstraction(self,e):
         body = e.body.visit(self)
         i = id(body)
@@ -540,19 +540,19 @@ class Mutator:
                 return self.logLikelihood(tp, e)
 
 class RegisterPrimitives(object):
-    def invented(self,e): e.body.visit(self)        
+    def invented(self,e): e.body.visit(self)
     def primitive(self,e):
         if e.name not in Primitive.GLOBALS:
             Primitive(e.name, e.tp, e.value)
     def index(self,e): pass
     def application(self,e):
         e.f.visit(self)
-        e.x.visit(self)   
-    def abstraction(self,e): e.body.visit(self)        
+        e.x.visit(self)
+    def abstraction(self,e): e.body.visit(self)
     @staticmethod
     def register(e): e.visit(RegisterPrimitives())
-        
-        
+
+
 class PrettyVisitor(object):
     def __init__(self):
         self.numberOfVariables = 0
@@ -581,7 +581,7 @@ class PrettyVisitor(object):
                 v = self.makeVariable()
                 self.freeVariables[i] = v
                 return v
-            
+
     def application(self,e,environment,isFunction,isAbstraction):
         self.toplevel = False
         s = u"%s %s"%(e.f.visit(self,environment,True,False),
@@ -593,7 +593,7 @@ class PrettyVisitor(object):
         self.toplevel = False
         # Invent a new variable
         v = self.makeVariable()
-        
+
         body = e.body.visit(self,
                             [v]+environment,
                             False,

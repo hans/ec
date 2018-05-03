@@ -1,11 +1,10 @@
 from collections import defaultdict
-from itertools import izip
 import json
 
-from frontier import *
-from program import *
-from type import *
-from utilities import *
+from ec.frontier import *
+from ec.program import *
+from ec.type import *
+from ec.utilities import *
 
 import time
 
@@ -31,13 +30,14 @@ class Grammar(object):
 
     def __len__(self): return len(self.productions)
     def __str__(self):
-        def productionKey((l,t,p)):
+        def productionKey(rule):
+            l,t,p = rule
             return not isinstance(p,Primitive), -l
         lines = ["%f\tt0\t$_"%self.logVariable]
         for l,t,p in sorted(self.productions, key = productionKey):
             l = "%f\t%s\t%s"%(l,t,p)
             if not t.isArrow() and isinstance(p,Invented):
-                try: l += "\teval = %s"%(p.evaluate([]))                    
+                try: l += "\teval = %s"%(p.evaluate([]))
                 except: pass
 
             lines.append(l)
@@ -69,7 +69,7 @@ class Grammar(object):
         If returnTable is false (default): returns [((log)likelihood, tp, primitive, context)]
         if returntable is true: returns {primitive: ((log)likelihood, tp, context)}"""
         if returnProbabilities: assert normalize
-        
+
         candidates = []
         variableCandidates = []
         for l,t,p in self.productions:
@@ -91,7 +91,7 @@ class Grammar(object):
         candidates += [ (self.logVariable - log(len(variableCandidates)), t, p, k)
                         for t,p,k in variableCandidates ]
         if candidates == []: raise NoCandidates()
-        
+
         if normalize:
             z = lse([ l for l,t,p,k in candidates ])
             if returnProbabilities: candidates = [ (exp(l - z), t, p, k) for l,t,p,k in candidates ]
@@ -134,8 +134,8 @@ class Grammar(object):
             context, x = self._sample(x, context, environment, maximumDepth - 1)
             returnValue = Application(returnValue, x)
 
-        return context, returnValue        
-        
+        return context, returnValue
+
 
     def likelihoodSummary(self, context, environment, request, expression, silent=False):
         if request.isArrow():
@@ -152,7 +152,7 @@ class Grammar(object):
         candidates = self.buildCandidates(request, context, environment,
                                           normalize = False,
                                           returnTable = True)
-        
+
         # A list of everything that would have been possible to use here
         possibles = [ p for p in candidates.keys() if not p.isIndex ]
         numberOfVariables = sum(p.isIndex for p in candidates.keys())
@@ -184,7 +184,7 @@ class Grammar(object):
             eprint("xs",xs)
             eprint("argumentTypes",argumentTypes)
             # This should absolutely never occur
-            raise GrammarFailure((context, environment, request, expression))            
+            raise GrammarFailure((context, environment, request, expression))
 
         for argumentType, argument in zip(argumentTypes, xs):
             argumentType = argumentType.apply(context)
@@ -197,7 +197,7 @@ class Grammar(object):
 
     def bestFirstEnumeration(self, request):
         from heapq import heappush, heappop
-        
+
         pq = []
 
         def choices(parentCost, xs):
@@ -207,10 +207,10 @@ class Grammar(object):
               context = None, environment = [],
               k = None):
             """
-            k is a continuation. 
+            k is a continuation.
             k: Expects to be called with MDL, context, expression.
             """
-            
+
             assert k is not None
             if context is None: context = Context.EMPTY
 
@@ -219,18 +219,18 @@ class Grammar(object):
                   context = context,
                   environment = [request.arguments[0]] + environment,
                   k = lambda MDL, newContext, p: k(MDL, newContext, Abstraction(p)))
-            else:            
+            else:
                 candidates = self.buildCandidates(request, context, environment,
                                                   normalize = True,
                                                   returnProbabilities = False,
                                                   returnTable = True)
                 choices(parentCost,
-                        map(lambda (f,(ll,tp,newContext)): \
-                            (-ll,
-                             lambda: ga(parentCost-ll, f, tp.functionArguments(),
-                                        context = newContext, environment = environment,
+                        map(lambda cand: \
+                            (-cand[1][0],
+                             lambda: ga(parentCost-cand[1][0], cand[0], cand[1][1].functionArguments(),
+                                        context = cand[1][2], environment = environment,
                                         k = k)),
-                            candidates.iteritems()))
+                            candidates.items()))
         def ga(costSoFar, f, argumentTypes, _ = None,
                context = None, environment = None,
                k = None):
@@ -270,7 +270,7 @@ class Grammar(object):
             with open(failureExport,'wb') as handle:
                 pickle.dump((e,self,request,expression), handle)
             assert False
-            
+
         return summary
 
     def logLikelihood(self, request, expression):
@@ -297,7 +297,7 @@ class Grammar(object):
                                                        e.program)
                 for p,u in summary.uses:
                     uses[p] += u*math.exp(e.logPosterior)
-        return uses        
+        return uses
 
     def smartlyInitialize(self, expectedSize):
         frequencies = {}
@@ -310,7 +310,7 @@ class Grammar(object):
 
     def enumeration(self, context, environment, request, upperBound, maximumDepth = 20, lowerBound = 0.):
         '''Enumerates all programs whose MDL satisfies: lowerBound < MDL <= upperBound'''
-        if upperBound <= 0 or maximumDepth == 1: return 
+        if upperBound <= 0 or maximumDepth == 1: return
 
         if request.isArrow():
             v = request.arguments[0]
@@ -352,7 +352,7 @@ class Grammar(object):
         if argumentRequests == []:
             if lowerBound < 0. and 0. <= upperBound:
                 yield 0., context, function
-            else: return 
+            else: return
         else:
             argRequest = argumentRequests[0].apply(context)
             laterRequests = argumentRequests[1:]
@@ -361,7 +361,7 @@ class Grammar(object):
                                                           lowerBound = 0.,
                                                           maximumDepth = maximumDepth):
                 if violatesSymmetry(originalFunction, arg, argumentIndex): continue
-                
+
                 newFunction = Application(function, arg)
                 for resultL, resultK, result in self.enumerateApplication(newContext, environment, newFunction,
                                                                           laterRequests,
@@ -391,7 +391,7 @@ class LikelihoodSummary(object):
         self.normalizers = {}
         self.constant = 0.
     def __str__(self):
-        return """LikelihoodSummary(constant = %f, 
+        return """LikelihoodSummary(constant = %f,
 uses = {%s},
 normalizers = {%s})"""%(self.constant,
                         ", ".join("%s: %d"%(k,v) for k,v in self.uses.iteritems() ),
@@ -402,7 +402,7 @@ normalizers = {%s})"""%(self.constant,
 
         # Make it something that we can hash
         possibles = frozenset(sorted(possibles))
-        
+
         self.constant += constant
         self.uses[actual] = self.uses.get(actual,0) + 1
         self.normalizers[possibles]  = self.normalizers.get(possibles,0) + 1
@@ -415,10 +415,10 @@ normalizers = {%s})"""%(self.constant,
             sum(count * grammar.expression2likelihood[p] for p, count in self.uses.iteritems() ) - \
             sum(count * lse([grammar.expression2likelihood[p] for p in ps ])
                 for ps, count in self.normalizers.iteritems() )
-            
-            
 
-        
+
+
+
 class Uses(object):
     '''Tracks uses of different grammar productions'''
     def __init__(self, possibleVariables = 0., actualVariables = 0.,
@@ -489,7 +489,7 @@ class Uses(object):
             for k, v in u.actualUses.iteritems():
                 total.actualUses[k] += v
         return total
-    
+
 Uses.empty = Uses()
 
 def violatesSymmetry(f,x,argumentIndex):
@@ -508,4 +508,4 @@ def violatesSymmetry(f,x,argumentIndex):
     if f == "range": return x == "0"
     if f == "fold": return argumentIndex == 1 and x == "empty"
     return False
-        
+

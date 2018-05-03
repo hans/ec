@@ -1,6 +1,6 @@
-from program import *
-from utilities import *
-from differentiation import *
+from ec.program import *
+from ec.utilities import *
+from ec.differentiation import *
 
 import random
 import signal
@@ -27,7 +27,7 @@ class Task(object):
                             "(for task %s) FATAL: Number of arguments varies."%name
             assert len(examples[0][0]) == len(request.functionArguments()), \
                 "(for task %s) FATAL: Number of arguments in the examples does not agree with the number of arguments according to the type %s."%(name, len(request.functionArguments()))
-        
+
     def __str__(self): return self.name
     def __repr__(self):
         return "Task(name={self.name}, request={self.request}, examples={self.examples}"\
@@ -49,10 +49,10 @@ class Task(object):
             def timeoutCallBack(_1,_2): raise EvaluationTimeout()
             signal.signal(signal.SIGVTALRM, timeoutCallBack)
             signal.setitimer(signal.ITIMER_VIRTUAL, timeout)
-            
+
         try:
             f = e.evaluate([])
-            
+
             for x,y in self.examples:
                 if self.cache and (x,e) in EVALUATIONTABLE: p = EVALUATIONTABLE[(x,e)]
                 else:
@@ -72,7 +72,7 @@ class Task(object):
         except EvaluationTimeout:
             eprint("Timed out while evaluating", e)
             return False
-        
+
     def logLikelihood(self,e, timeout=None):
         if self.check(e, timeout): return 0.0
         else: return NEGATIVEINFINITY
@@ -96,7 +96,7 @@ class Task(object):
             "request": str(self.request),
             "examples": [{"inputs": x, "output": y} for x, y in self.examples]
         }
-        
+
 
 class DifferentiableTask(Task):
     def __init__(self, name, request, examples, _ = None,
@@ -106,9 +106,9 @@ class DifferentiableTask(Task):
         self.loss = loss
         self.BIC = BIC
         self.likelihoodThreshold = likelihoodThreshold
-        
+
         super(DifferentiableTask,self).__init__(name, request, examples, features, cache = False)
-        
+
     def logLikelihood(self,e,timeout = None):
         assert timeout == None, "timeout not implemented for differentiable tasks, but not for any good reason."
         e, parameters = PlaceholderVisitor.execute(e)
@@ -124,7 +124,7 @@ class DifferentiableTask(Task):
                                                      update = None)
             except InvalidLoss:
                 loss = POSITIVEINFINITY
-            
+
         # BIC penalty
         penalty = self.BIC*len(parameters)*math.log(len(self.examples))
 
@@ -133,7 +133,7 @@ class DifferentiableTask(Task):
             else: return -penalty
         else:
             return -loss - penalty
-        
+
 def squaredErrorLoss(prediction, target):
     d = prediction - target
     return d*d

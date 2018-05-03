@@ -8,8 +8,8 @@ import sys
 import os
 import subprocess
 import math
-import cPickle as pickle
-from itertools import chain, imap
+import pickle
+from itertools import chain
 import heapq
 
 def eprint(*args, **kwargs):
