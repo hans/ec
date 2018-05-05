@@ -4,7 +4,7 @@ from clevros.primitives import *
 
 import time
 import traceback
-import cPickle as pickle
+import pickle
 
 from ec.utilities import eprint
 

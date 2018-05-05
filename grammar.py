@@ -394,27 +394,27 @@ class LikelihoodSummary(object):
         return """LikelihoodSummary(constant = %f,
 uses = {%s},
 normalizers = {%s})"""%(self.constant,
-                        ", ".join("%s: %d"%(k,v) for k,v in self.uses.iteritems() ),
-                        ", ".join("%s: %d"%(k,v) for k,v in self.normalizers.iteritems() ))
+                        ", ".join("%s: %d"%(k,v) for k,v in self.uses.items() ),
+                        ", ".join("%s: %d"%(k,v) for k,v in self.normalizers.items() ))
     def record(self, actual, possibles, constant = 0.):
         # Variables are all normalized to be $0
         if isinstance(actual, Index): actual = Index(0)
 
         # Make it something that we can hash
-        possibles = frozenset(sorted(possibles))
+        possibles = frozenset(sorted(possibles, key=lambda k: str(k)))
 
         self.constant += constant
         self.uses[actual] = self.uses.get(actual,0) + 1
         self.normalizers[possibles]  = self.normalizers.get(possibles,0) + 1
     def join(self, other):
         self.constant += other.constant
-        for k,v in other.uses.iteritems(): self.uses[k] = self.uses.get(k,0) + v
-        for k,v in other.normalizers.iteritems(): self.normalizers[k] = self.normalizers.get(k,0) + v
+        for k,v in other.uses.items(): self.uses[k] = self.uses.get(k,0) + v
+        for k,v in other.normalizers.items(): self.normalizers[k] = self.normalizers.get(k,0) + v
     def logLikelihood(self, grammar):
         return self.constant + \
-            sum(count * grammar.expression2likelihood[p] for p, count in self.uses.iteritems() ) - \
+            sum(count * grammar.expression2likelihood[p] for p, count in self.uses.items() ) - \
             sum(count * lse([grammar.expression2likelihood[p] for p in ps ])
-                for ps, count in self.normalizers.iteritems() )
+                for ps, count in self.normalizers.items() )
 
 
 
@@ -436,8 +436,8 @@ class Uses(object):
     def __mul__(self,a):
         return Uses(a*self.possibleVariables,
                     a*self.actualVariables,
-                    {p: a*u for p,u in self.possibleUses.iteritems() },
-                    {p: a*u for p,u in self.actualUses.iteritems() })
+                    {p: a*u for p,u in self.possibleUses.items() },
+                    {p: a*u for p,u in self.actualUses.items() })
     def __imul__(self,a):
         self.possibleVariables *= a
         self.actualVariables *= a
@@ -455,7 +455,7 @@ class Uses(object):
         if o == 0: return self
         def merge(x,y):
             z = x.copy()
-            for k,v in y.iteritems():
+            for k,v in y.items():
                 z[k] = v + x.get(k,0.)
             return z
         return Uses(self.possibleVariables + o.possibleVariables,
@@ -465,9 +465,9 @@ class Uses(object):
     def __iadd__(self,o):
         self.possibleVariables += o.possibleVariables
         self.actualVariables += o.actualVariables
-        for k, v in o.possibleUses.iteritems():
+        for k, v in o.possibleUses.items():
             self.possibleUses[k] = self.possibleUses.get(k, 0.) + v
-        for k, v in o.actualUses.iteritems():
+        for k, v in o.actualUses.items():
             self.actualUses[k] = self.actualUses.get(k, 0.) + v
         return self
 
@@ -484,9 +484,9 @@ class Uses(object):
         total.possibleUses = defaultdict(float)
         total.actualUses = defaultdict(float)
         for _, u in weightedUses:
-            for k, v in u.possibleUses.iteritems():
+            for k, v in u.possibleUses.items():
                 total.possibleUses[k] += v
-            for k, v in u.actualUses.iteritems():
+            for k, v in u.actualUses.items():
                 total.actualUses[k] += v
         return total
 

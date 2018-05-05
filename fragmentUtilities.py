@@ -54,8 +54,8 @@ class Matcher(object):
         # This is because everything has to be in eta-longform
         if numberOfArguments > 0:
             expression = expression.shift(numberOfArguments)
-            for j in reversed(xrange(numberOfArguments)): expression = Application(expression, Index(j))
-            for _ in xrange(numberOfArguments): expression = Abstraction(expression)
+            for j in reversed(range(numberOfArguments)): expression = Application(expression, Index(j))
+            for _ in range(numberOfArguments): expression = Abstraction(expression)
 
         # Added to the bindings
         if i in self.variableBindings:
@@ -144,7 +144,7 @@ def defragment(expression):
 
     expression = canonicalFragment(expression)
 
-    for _ in xrange(expression.numberOfFreeVariables):
+    for _ in range(expression.numberOfFreeVariables):
         expression = Abstraction(expression)
 
     return Invented(expression)
@@ -198,7 +198,7 @@ def proposeFragmentsFromFragment(f):
     closedSubtrees = Counter(subtree for _, subtree in f.walk()
                              if not isinstance(subtree, Index) and subtree.closed)
     del closedSubtrees[f]
-    for subtree, freq in closedSubtrees.iteritems():
+    for subtree, freq in closedSubtrees.items():
         if freq < 2: continue
         yield canonicalFragment(f.substitute(subtree, Index(freeVariables)))
 
@@ -291,7 +291,7 @@ def proposeFragmentsFromProgram(p,arity):
         else:
             assert isinstance(expression, (Invented,Primitive,Index))
 
-    return { canonicalFragment(f) for b in xrange(arity + 1) for f in fragments(p,b) if nontrivial(f) }
+    return { canonicalFragment(f) for b in range(arity + 1) for f in fragments(p,b) if nontrivial(f) }
 
 def proposeFragmentsFromFrontiers(frontiers, a, CPUs=1):
     fragmentsFromEachFrontier = parallelMap(CPUs, lambda frontier: \
