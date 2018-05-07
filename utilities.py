@@ -202,6 +202,7 @@ def _launchParallelProcess():
 class CompiledTimeout(Exception): pass
 
 def callCompiled(f, *arguments, **keywordArguments):
+    return f(*arguments, **keywordArguments)
     pypyArgs = []
     profile = keywordArguments.pop('profile', None)
     if profile:
