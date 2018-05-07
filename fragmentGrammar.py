@@ -423,11 +423,12 @@ def rustInduce(g0, frontiers, _=None,
     }
 
     eprint("running rust compressor")
+    cwd = os.path.dirname(__file__)
     p = subprocess.Popen(['./rust_compressor/rust_compressor'],
-                         stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, cwd=cwd)
     with open('rust_compressor_message.json','w') as handle:
         json.dump(message, handle)
-    json.dump(message, p.stdin)
+    p.stdin.write(json.dumps(message).encode("utf-8"))
     p.stdin.close()
     resp = json.load(p.stdout)
     if p.returncode is not None:
