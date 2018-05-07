@@ -62,7 +62,7 @@ PARALLELMAPDATA = None
 def parallelMap(numberOfCPUs, f, *xs, **keywordArguments):
     global PARALLELMAPDATA
 
-    if numberOfCPUs == 1: return map(f,*xs)
+    if numberOfCPUs == 1: return list(map(f,*xs))
 
     n = len(xs[0])
     for x in xs: assert len(x) == n
